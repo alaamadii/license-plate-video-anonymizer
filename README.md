@@ -28,11 +28,11 @@ The implementation separates detection, tiling, tracking, temporal logic, redact
 ## Features
 
 - Swappable detector interface and optional Ultralytics YOLO adapter
-- Full-resolution detection plus reusable overlapping tiled/hybrid inference
-- Deterministic IoU tracker baseline; architecture permits a stronger tracker later
-- Short-gap temporal interpolation primitives
+- Full-resolution detection plus CLI-selectable overlapping tiled/hybrid inference
+- Deterministic IoU tracker baseline integrated into the video pipeline
+- Bounded frame buffering with short-gap temporal interpolation before frames are written
 - Blur, pixelation, or solid redaction with configurable conservative box padding
-- Local video processing with original width/FPS retained by the current OpenCV writer
+- Local video processing with original width/FPS retained by the OpenCV writer; optional FFmpeg audio remux
 - JSONL detection metadata
 - Traditional IoU plus privacy-oriented ground-truth coverage metric
 - Frame-aware evaluation building blocks and difficult-case tags
@@ -118,7 +118,7 @@ pytest
 
 A portfolio-quality engineering implementation is not evidence of 99% recall. Before any production claim, representative footage must be manually annotated, split into development and locked holdout data, and evaluated across difficult conditions. Every false negative should be inspected.
 
-The current baseline tracker/interpolation components are intentionally modular. A deployment targeting extremely high recall should compare stronger tracking/temporal methods and tune them on development data without contaminating the holdout.
+The integrated tracker/interpolation path is a deterministic baseline. A deployment targeting extremely high recall should compare stronger tracking/temporal methods and tune them on development data without contaminating the holdout. See [Production Validation Checklist](docs/PRODUCTION_CHECKLIST.md).
 
 ## Model licensing
 
