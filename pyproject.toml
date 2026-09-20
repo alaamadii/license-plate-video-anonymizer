@@ -15,9 +15,13 @@ dependencies = ["numpy>=1.26", "opencv-python>=4.10", "pydantic>=2.8", "typer>=0
 [project.optional-dependencies]
 dev = ["pytest>=8.3", "ruff>=0.6", "mypy>=1.11"]
 yolo = ["ultralytics>=8.3"]
+media = ["imageio-ffmpeg>=0.6"]
 
 [project.scripts]
 plate-anonymizer = "plate_anonymizer.cli:app"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/plate_anonymizer"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -29,3 +33,6 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["typer.Option"]

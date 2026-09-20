@@ -1,0 +1,17 @@
+.git
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+input
+output
+outputs
+models/*.pt
+models/*.onnx
+data
+datasets
+evaluation_results
+*.mp4
+*.mov
+*.avi
+.env*

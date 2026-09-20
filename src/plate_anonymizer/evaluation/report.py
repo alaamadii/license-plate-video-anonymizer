@@ -20,7 +20,9 @@ def evaluate_frames(
 
     total = Metrics(0, 0, 0)
     for frame in set(gt_by_frame) | set(predictions):
-        current = match_boxes(predictions.get(frame, []), gt_by_frame.get(frame, []), threshold, metric)
+        current = match_boxes(
+            predictions.get(frame, []), gt_by_frame.get(frame, []), threshold, metric
+        )
         total = Metrics(total.tp + current.tp, total.fp + current.fp, total.fn + current.fn)
 
     tags: dict[str, list[Annotation]] = defaultdict(list)
@@ -29,7 +31,12 @@ def evaluate_frames(
             tags[tag].append(annotation)
 
     return {
-        "overall": {**asdict(total), "precision": total.precision, "recall": total.recall, "f1": total.f1},
+        "overall": {
+            **asdict(total),
+            "precision": total.precision,
+            "recall": total.recall,
+            "f1": total.f1,
+        },
         "ground_truth_instances": len(annotations),
         "tag_counts": {tag: len(items) for tag, items in sorted(tags.items())},
     }

@@ -12,9 +12,15 @@ models/*.onnx
 data/
 datasets/
 outputs/
+output/
+input/
+*.egg-info/
+build/
+dist/
 evaluation_results/
 benchmarks/
 *.mp4
 *.mov
 *.avi
 .env
+.env.*

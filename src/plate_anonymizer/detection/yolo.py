@@ -21,6 +21,7 @@ class YoloDetector(BaseDetector):
         iou: float = 0.5,
         device: str = "cpu",
         image_size: int = 1280,
+        plate_class_ids: list[int] | None = None,
     ) -> None:
         try:
             from ultralytics import YOLO
@@ -29,6 +30,21 @@ class YoloDetector(BaseDetector):
                 'YOLO support requires the optional dependency: pip install -e ".[yolo]"'
             ) from exc
         self._model: Any = YOLO(str(model_path))
+        names = self._model.names
+        if plate_class_ids is None:
+            aliases = {"licenseplate", "licenceplate", "numberplate", "plate", "lp"}
+            plate_class_ids = [
+                int(index) for index, name in names.items()
+                if "".join(c for c in name.lower() if c.isalnum()) in aliases
+            ]
+        if not plate_class_ids or any(index not in names for index in plate_class_ids):
+            raise ValueError(
+                "Model has no recognized license-plate class. Generic yolov8n.pt weights "
+                "do not detect plates. Use plate-specific weights, or --plate-class-id "
+                "for a custom plate label. "
+                f"Model classes: {names}"
+            )
+        self.plate_class_ids = plate_class_ids
         self.confidence = confidence
         self.iou = iou
         self.device = device
@@ -44,6 +60,7 @@ class YoloDetector(BaseDetector):
             imgsz=self.image_size,
             device=self.device,
             verbose=False,
+            classes=self.plate_class_ids,
         )
         detections: list[Detection] = []
         for result in results:

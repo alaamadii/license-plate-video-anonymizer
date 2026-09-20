@@ -4,5 +4,5 @@ RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg libgl1 l
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY . .
-RUN pip install --no-cache-dir .
+RUN pip install --no-cache-dir '.[yolo,media]'
 ENTRYPOINT ["plate-anonymizer"]

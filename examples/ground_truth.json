@@ -1,0 +1,8 @@
+{
+  "description": "Synthetic coordinate fixture for testing the evaluator; not benchmark footage.",
+  "evaluated_frames": [0, 1, 2],
+  "annotations": [
+    {"frame_index": 0, "bbox": [10, 10, 30, 20], "tags": ["normal"]},
+    {"frame_index": 1, "bbox": [20, 10, 40, 20], "tags": ["small", "motion_blur"]}
+  ]
+}

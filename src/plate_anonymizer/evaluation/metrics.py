@@ -1,7 +1,7 @@
 """Detection matching and privacy metrics."""
 
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Callable
 
 from plate_anonymizer.models import BoundingBox
 from plate_anonymizer.utils.boxes import coverage_ratio, iou
@@ -33,6 +33,18 @@ def match_boxes(
     threshold: float = 0.5,
     metric: str = "iou",
 ) -> Metrics:
+    pairs = match_indices(predictions, ground_truth, threshold, metric)
+    tp = len(pairs)
+    return Metrics(tp=tp, fp=len(predictions) - tp, fn=len(ground_truth) - tp)
+
+
+def match_indices(
+    predictions: list[BoundingBox],
+    ground_truth: list[BoundingBox],
+    threshold: float = 0.5,
+    metric: str = "iou",
+) -> list[tuple[int, int]]:
+    """Greedy score-ordered one-to-one assignment, shared by metrics and evidence."""
     scorer: Callable[[BoundingBox, BoundingBox], float]
     if metric == "iou":
         scorer = iou
@@ -51,10 +63,10 @@ def match_boxes(
 
     used_predictions: set[int] = set()
     used_ground_truth: set[int] = set()
+    pairs = []
     for _, pi, gi in candidates:
         if pi not in used_predictions and gi not in used_ground_truth:
             used_predictions.add(pi)
             used_ground_truth.add(gi)
-
-    tp = len(used_ground_truth)
-    return Metrics(tp=tp, fp=len(predictions) - tp, fn=len(ground_truth) - tp)
+            pairs.append((pi, gi))
+    return pairs

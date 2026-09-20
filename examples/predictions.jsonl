@@ -1,0 +1,2 @@
+{"frame_index":0,"bbox":{"x1":10,"y1":10,"x2":30,"y2":20},"redaction_bbox":[7,8,33,22],"confidence":0.9,"source":"detector"}
+{"frame_index":2,"bbox":{"x1":50,"y1":30,"x2":70,"y2":40},"redaction_bbox":[47,28,73,42],"confidence":0.3,"source":"detector"}

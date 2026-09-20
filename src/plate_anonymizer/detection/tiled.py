@@ -28,7 +28,9 @@ def non_max_suppression(detections: list[Detection], threshold: float = 0.5) -> 
     while remaining:
         current = remaining.pop(0)
         kept.append(current)
-        remaining = [candidate for candidate in remaining if iou(current.bbox, candidate.bbox) < threshold]
+        remaining = [
+            candidate for candidate in remaining if iou(current.bbox, candidate.bbox) < threshold
+        ]
     return kept
 
 
@@ -56,7 +58,9 @@ class TiledDetector(BaseDetector):
         )
         for y in tile_origins(height, self.tile_size, self.overlap):
             for x in tile_origins(width, self.tile_size, self.overlap):
-                tile = frame[y : min(y + self.tile_size, height), x : min(x + self.tile_size, width)]
+                tile = frame[
+                    y : min(y + self.tile_size, height), x : min(x + self.tile_size, width)
+                ]
                 for detection in self.detector.detect(tile, frame_index, timestamp_ms):
                     box = detection.bbox
                     detections.append(

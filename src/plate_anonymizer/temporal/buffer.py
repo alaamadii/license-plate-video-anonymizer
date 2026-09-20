@@ -28,6 +28,11 @@ class TemporalBuffer:
         self._last_seen: dict[int, Detection] = {}
 
     def push(self, frame: BufferedFrame) -> list[BufferedFrame]:
+        self._last_seen = {
+            tid: detection
+            for tid, detection in self._last_seen.items()
+            if frame.index - detection.frame_index <= self.max_gap + 1
+        }
         for detection in frame.detections:
             if detection.track_id is None:
                 continue
@@ -49,4 +54,5 @@ class TemporalBuffer:
     def flush(self) -> list[BufferedFrame]:
         ready = list(self._frames)
         self._frames.clear()
+        self._last_seen.clear()
         return ready
