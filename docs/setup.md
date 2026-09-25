@@ -31,7 +31,8 @@ constraints/windows-cpu-py313.txt records exact installed versions of the projec
 runtime/test dependency closure from the local Windows/Python 3.13 environment.
 It is a platform-specific constraints snapshot, not a universal lock. A clean
 Windows/Python 3.13 environment was installed with the dev extra and these
-constraints: all 28 tests, Ruff, the evaluation example and pip check passed.
+constraints: the initial 28-test suite, Ruff, the evaluation example and pip check passed.
+The suite now contains 40 tests, also checked in that isolated environment.
 The full YOLO/media extras were exercised in the existing development environment,
 not reinstalled in the clean test environment. Use the snapshot with:
 
@@ -39,7 +40,7 @@ not reinstalled in the clean test environment. Use the snapshot with:
 python -m pip install -c constraints/windows-cpu-py313.txt -e ".[dev,yolo,media]"
 ```
 
-For a production handover, build and test a dedicated environment on the chosen
+For a production release, build and test a dedicated environment on the chosen
 CUDA platform and freeze its resolved dependencies and container digest. Record
 the model checksum and exact processing command with each experiment. Do not
 freeze unrelated packages from a general workstation.
@@ -55,7 +56,7 @@ The image installs detector/media extras; models and footage must be mounted.
 The Dockerfile is provided but has not been built locally. It is not a pinned
 CUDA production image. Image context excludes local media, weights and secrets.
 
-## GitHub handoff
+## Repository contents
 
 Track source, tests, examples, documentation, model provenance and constraints.
 Do not add input/, output/, model binaries, virtual environments or local failure

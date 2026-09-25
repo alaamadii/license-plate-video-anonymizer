@@ -12,12 +12,13 @@ The deterministic IoU tracker assigns IDs. A bounded frame buffer interpolates
 short gaps when the same track is detected again. Track history expires, so it
 does not accumulate indefinitely in long recordings. This is short-gap recovery,
 not optical flow or a trained motion model. No leading/trailing propagation or
-scene-cut detector is implemented.
+scene-cut detector is implemented in the default IoU path. The opt-in motion path
+adds bounded prediction and a coarse cut safeguard; see [motion tracking](motion-tracking.md).
 
 Expanded rectangles are rendered directly into pixels. JSONL records the original
-box and integer clipped redaction_bbox used by the renderer. It also records
+box and integer clipped mask rectangle used by the renderer. It also records
 frame index, nominal timestamp, confidence, class, track ID and source
-(detector/interpolation). No row is written for a frame with no detections.
+(direct detection, interpolation or temporal propagation). No row is written for a frame with no detections.
 
 The OpenCV writer produces a constant-FPS intermediate. With preserve-audio,
 FFmpeg encodes MP4 as H.264/yuv420p and converts source audio to AAC. This requires
@@ -43,4 +44,4 @@ file per emitted frame; profile these on crowded 4K footage before scaling.
 - Solid masks obscure selected pixels; blur/pixelation require readability checks.
 - Evaluation uses rectangular coverage and greedy assignment; it is not an OCR test.
 
-See PROJECT_PLAN.md for the proposed production upgrades and acceptance gates.
+See the [roadmap](roadmap.md) for planned improvements and validation criteria.

@@ -1,37 +1,44 @@
 # License Plate Video Anonymizer
 
-A Python video pipeline that detects vehicle plates, links detections across frames,
-recovers short gaps, and burns redactions into the output video.
+Detect and obscure vehicle license plates in video with a local Python pipeline.
+The project combines plate detection, tracking, short-gap recovery and permanent
+pixel redaction, with tools for evaluating both detection quality and coverage
+continuity.
 
-**Working engineering baseline.** A 30-second street clip has been processed and
-checked end to end. **99% recall / 95% precision are acceptance targets, not measured
-results.** The included evaluation workflow makes those targets testable on labelled footage.
+## Features
 
-## Pipeline
+- Plate-specific YOLO detection with full-frame, tiled and hybrid inference.
+- IoU tracking and an optional experimental motion tracker.
+- Bounded temporal recovery to reduce short interruptions in coverage.
+- Solid masks, blur or pixelation, with configurable padding.
+- MP4 output with H.264 video and source audio converted to AAC.
+- JSONL metadata that distinguishes detections, interpolation and propagated boxes.
+- Frame-level evaluation, condition-specific recall, missed-plate crops and
+  continuity metrics for manually labelled tracks.
+- CPU execution, optional CUDA, reproducible examples and automated tests.
+
+## How it works
 
 ```mermaid
 flowchart LR
-    A[Decode video] --> B[Plate detector]
-    B --> C[Optional overlapping tiles]
-    C --> D[IoU tracking]
-    D --> E[Buffered gap interpolation]
-    E --> F[Expanded solid masks]
-    F --> G[Encode video and audio]
-    E --> H[JSONL boxes and provenance]
-    H --> I[Frame-aware evaluation]
-    I --> J[Missed-plate evidence]
+    A[Video] --> B[Plate detection]
+    B --> C[Full frame or overlapping tiles]
+    C --> D[Tracking and temporal recovery]
+    D --> E[Expanded masks]
+    E --> F[Encoded video and audio]
+    D --> G[Detection metadata]
+    G --> H[Evaluation and failure review]
 ```
 
-- Plate-specific YOLO adapter; rejects generic object detectors without plate classes.
-- Full-frame, tiled, and hybrid inference; coordinates remain in the original image.
-- Bounded frame buffering, short-gap recovery, configurable padding and redaction.
-- JSONL with detection boxes, actual mask rectangles, confidence, track ID and source.
-- Evaluation by frame, per-condition recall, false-negative crops and input checksums.
-- CLI progress, CPU support, optional CUDA, and an explicit throughput/cost calculator.
+Frames are decoded at their source resolution. The detector locates candidate
+plates, tracking links observations over time, and the renderer obscures selected
+pixels before encoding. The optional motion tracker can maintain a mask through
+brief detector dropouts. Its predictions expire rather than extending themselves
+indefinitely.
 
-## Quick start
+## Get started
 
-Python 3.11+. From a clone of this repository:
+Python 3.11 or newer:
 
 ```bash
 python -m venv .venv
@@ -39,71 +46,87 @@ python -m venv .venv
 # Linux/macOS: source .venv/bin/activate
 python -m pip install -e ".[dev,yolo,media]"
 python scripts/download_model.py
-plate-anonymizer anonymize --input input/clip.mp4 --output output/redacted.mp4 --model models/plate_detector.pt --device cpu --image-size 1280 --redaction solid --preserve-audio
+plate-anonymizer anonymize --input input/clip.mp4 --output output/redacted.mp4 --model models/plate_detector.pt --device cpu --redaction solid --preserve-audio
 ```
 
-The downloader verifies a recorded SHA256. Supply your own plate checkpoint with
-`--model` if preferred. For unusual plate labels, use `--plate-class-id N`.
-On Windows, `.\run.cmd "C:\videos\clip.mp4"` is a shortcut after installation.
-See [setup and reproducibility](docs/SETUP.md).
+On Windows, `.\run.cmd "C:\videos\clip.mp4"` provides a shortcut.
+The model downloader verifies a recorded SHA256. Other plate-specific weights
+can be supplied with `--model`. Generic object-detection weights without a plate
+class are rejected. See [installation](docs/setup.md) and
+[model provenance](models/README.md).
 
-The MP4 audio-preserving path produces H.264/AAC. Solid masks are recommended for
-privacy; blur and pixelation are also available. Processing stays local.
-Decoded resolution and nominal FPS are retained for the tested constant-FPS input.
+The default tracker is IoU. To try bounded motion propagation, add
+`--tracker-mode motion --motion-max-gap-seconds 0.2`.
+For tiled detection, add `--inference-mode hybrid --tile-size 512 --tile-overlap 0.25`.
+These options require evaluation on the intended footage; more detections do not
+automatically mean better accuracy. See [tracking](docs/motion-tracking.md).
 
-## Measured demonstration
+## Evaluate results
 
-| Item | Observed result |
-| --- | --- |
-| Street video | 750 frames, 1280 × 720, 25 FPS, 30 seconds |
-| CPU processing | 371.81 seconds; approximately 2.02 FPS |
-| Model observations | 1,538 detections plus 7 interpolated boxes |
-| Output verification | All 750 frames decode; H.264 video and AAC audio |
-| Accuracy / GPU throughput | Not measured |
-
-The timing excludes model loading and the separate final H.264/audio pass.
-Detection counts are not unique vehicles or verified true positives. A background
-false positive was visible during review. [Full demo report](docs/DEMO_RESULTS.md).
-
-## Reproduce an evaluation
-
-Run the included **synthetic format example** without downloading a model:
+Run the included synthetic example without model weights:
 
 ```bash
-plate-anonymizer evaluate-video --predictions examples/predictions.jsonl --ground-truth examples/ground_truth.json --report evaluation_results/example.json
+plate-anonymizer evaluate-video --predictions examples/predictions.jsonl --ground-truth examples/ground_truth.json --report output/example-report.json
 ```
 
-Expected: **1 TP, 1 FP, 1 FN**. This tests the evaluator, not model quality.
+Expected: **1 true positive, 1 false positive and 1 false negative**.
+This is an evaluator fixture, not a model benchmark.
 
-For actual footage, label the reviewed frames using the
-[annotation format](docs/ANNOTATION_GUIDE.md), then evaluate pipeline JSONL:
+To measure mask coverage on labelled footage:
 
 ```bash
-plate-anonymizer evaluate-video --predictions output/redacted.jsonl --ground-truth data/clip_gt.json --report evaluation_results/coverage.json --metric coverage --threshold 0.95 --box-field redaction_bbox --video input/clip.mp4 --failure-dir evaluation_results/missed
+plate-anonymizer evaluate-video --predictions output/redacted.jsonl --ground-truth data/labels.json --report output/coverage-report.json --metric coverage --threshold 0.95 --box-field redaction_bbox --video input/clip.mp4 --failure-dir output/missed-plates
 ```
 
-[Evaluation protocol](docs/EVALUATION_PROTOCOL.md) explains dataset size, held-out
-testing, difficult cases, and the evidence needed for a 99% recall claim.
+Labels must explicitly identify reviewed frames, including empty ones. Stable
+ground-truth track IDs enable uncovered-frame counts and longest-gap measurements.
+See the [annotation guide](docs/annotation-guide.md) and
+[evaluation protocol](docs/evaluation.md).
 
-## Tests
+## Validation status
+
+Two street-video runs completed with output frame counts, resolution, nominal FPS
+and audio checked. A controlled motion-tracking regression also verifies recovery
+of a six-frame detection gap.
+
+| Run | Input | CPU processing |
+| --- | --- | --- |
+| Street clip A | 30 seconds, 750 frames, 1280 x 720, 25 FPS | 371.81 seconds, excluding final H.264/audio pass |
+| Street clip B | 60 seconds, 1,800 frames, 848 x 478, 30 FPS | 757.97 seconds, including final H.264/audio pass |
+
+The timing scopes differ, so these are run records rather than a speed comparison.
+Visual review found missed plates, intermittent coverage and false-positive masks.
+Recall, precision and GPU throughput have not been measured on a labelled holdout.
+The project does not claim 99% recall. [Validation details](docs/validation.md).
+
+## Development
 
 ```bash
 python -m ruff check .
 python -m pytest
 ```
 
-GitHub Actions is configured for Python 3.11/3.13 on Windows and Linux.
-Local test success does not imply a hosted CI run has already passed.
+GitHub Actions is configured for Windows and Linux with Python 3.11 and 3.13.
+The local suite contains 40 tests covering geometry, tracking, propagation,
+evaluation, media handling and CLI behavior.
 
-## Scope and next steps
+## Documentation
 
-This baseline has not been validated on 4K, night footage, H.265/MOV inputs or
-hour-long recordings. Variable-frame-rate timing, HDR preservation, scene-cut
-handling, resume/retry, stronger tracking and model fine-tuning remain open.
-Interpolation needs detections on both sides; it cannot recover a plate never
-detected. See [architecture and limitations](docs/ARCHITECTURE.md) and the
-[production plan](docs/PROJECT_PLAN.md).
+- [Setup and reproducibility](docs/setup.md)
+- [Architecture and limitations](docs/architecture.md)
+- [Motion tracking and comparisons](docs/motion-tracking.md)
+- [Annotation format](docs/annotation-guide.md)
+- [Evaluation methodology](docs/evaluation.md)
+- [Validation records](docs/validation.md)
+- [Roadmap and performance planning](docs/roadmap.md)
+- [Release validation checklist](docs/production-checklist.md)
 
-Source: [MIT](LICENSE). Downloaded weights and Ultralytics retain their own terms;
-see [model provenance](models/README.md) and [licensing notes](docs/MODELS_AND_LICENSES.md).
-Footage, local results and weights are excluded from Git.
+## Scope and licensing
+
+Long recordings, 4K, night footage, H.265/MOV decoding, variable frame-rate timing
+and CUDA throughput require further validation. Motion propagation is experimental
+and can drift; it cannot recover a plate never detected. Processing is local;
+footage, generated outputs and model binaries are excluded from version control.
+
+Project source is [MIT licensed](LICENSE). Third-party models and libraries retain
+their own terms; see [licensing notes](docs/models-and-licenses.md).

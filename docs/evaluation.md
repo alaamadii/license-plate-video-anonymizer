@@ -2,8 +2,10 @@
 
 ## Acceptance definition
 
-Agree the annotation and matching policy before labelling the locked holdout.
-Targets: plate-instance recall >=99%, precision >=95%, with recall prioritized.
+Define annotation and matching rules before labelling a locked holdout.
+The project prioritizes recall while measuring precision and excess masking.
+A stringent evaluation may target 99% recall and 95% precision; these are
+example acceptance thresholds, not measured project results.
 Report detector localization (IoU >=0.5) separately from mask coverage
 (intersection(mask, visible plate) / visible plate area >=0.95). Coverage is a
 geometric proxy: it does not prove that blurred characters are unreadable.
@@ -11,7 +13,9 @@ Use solid masking for the privacy acceptance run.
 
 Report frame-instance recall and precision, per-condition recall, and missed-plate
 evidence. Track-level protection (every visible frame of a plate protected) is an
-additional production metric to implement; it is not yet produced by the CLI.
+additional acceptance metric. With manually assigned track IDs the CLI now reports
+continuity over reviewed frames. Full-track protection requires annotating every
+visible frame; see motion-tracking.md.
 One long-lived parked car must not hide failures on briefly visible vehicles.
 
 ## Initial labelling budget
@@ -44,8 +48,8 @@ Frames within tracks and sessions are correlated. Report raw TP/FP/FN and a
 session- or track-clustered confidence interval, alongside condition-specific
 counts. Collect more independent footage if the lower bound or rare-case support
 is insufficient. A point estimate of 99% alone is not proof that population
-recall is at least 99%. Clustered intervals and track aggregation are planned
-analysis steps, not capabilities of the current CLI.
+recall is at least 99%. Clustered confidence intervals remain planned analysis;
+track continuity over reviewed frames is available with ground-truth track IDs.
 
 ## Repeatable workflow
 
@@ -53,8 +57,8 @@ analysis steps, not capabilities of the current CLI.
 2. Tune weights, confidence, image size, tiles, padding and temporal settings on
    development only. Preserve each command, checkpoint hash and environment.
 3. Freeze the configuration; run anonymization on each held-out clip.
-4. Run evaluate-video once per clip for IoU using bbox, and for coverage using
-   redaction_bbox. Sum TP/FP/FN across clips before calculating overall metrics;
+4. Run evaluate-video once per clip for IoU using detection boxes, and for coverage using
+   rendered mask rectangles. Sum TP/FP/FN across clips before calculating overall metrics;
    do not average clip recall percentages.
 5. Inspect every missed-plate crop and false-positive frame. Never relabel an
    actual miss away to improve the score. Corrections need an audit trail.
@@ -64,8 +68,8 @@ analysis steps, not capabilities of the current CLI.
 
 ## CLI semantics
 
-The manifest explicitly lists evaluated_frames, including reviewed empty frames.
-Predictions on other frames are ignored and counted as ignored_prediction_rows.
+The manifest explicitly lists reviewed frames, including reviewed empty frames.
+Predictions on other frames are ignored and their row count is reported.
 No cross-frame matching is allowed. Matches use greedy descending-score one-to-one
 assignment; duplicates count as false positives. Results include matching rules,
 threshold, box field, input SHA256 hashes, frame counts, per-frame counts, tag
@@ -74,7 +78,7 @@ tags overlap and must not be summed. Precision with no predictions and recall
 with no ground truth are reported as zero; inspect counts before interpretation.
 
 One evaluation covers one video, with zero-based frame indices. Do not concatenate
-multiple videos with overlapping indices. Historical JSONL without redaction_bbox
+multiple videos with overlapping indices. Historical JSONL without rendered mask coordinates
 can be used for detector IoU; rerun anonymization to measure actual mask coverage.
 
 Failure crops contain original plate pixels and stay in ignored local result

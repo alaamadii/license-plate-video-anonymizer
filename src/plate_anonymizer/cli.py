@@ -43,10 +43,16 @@ def anonymize(
     tracking: bool = typer.Option(True, "--tracking/--no-tracking"),
     preserve_audio: bool = typer.Option(False, "--preserve-audio/--no-preserve-audio"),
     plate_class_id: list[int] | None = typer.Option(None, "--plate-class-id"),
+    tracker_mode: str = typer.Option("iou", help="iou baseline or experimental motion"),
+    motion_max_gap_seconds: float = typer.Option(0.2, min=0, max=1),
 ) -> None:
     """Detect and permanently obscure plates in a video."""
     if inference_mode not in {"full", "tiled", "hybrid"}:
         raise typer.BadParameter("inference-mode must be full, tiled, or hybrid")
+    if tracker_mode not in {"iou", "motion"}:
+        raise typer.BadParameter("tracker-mode must be iou or motion")
+    if tracker_mode == "motion" and not tracking:
+        raise typer.BadParameter("motion tracking requires --tracking")
 
     metadata_path = metadata or output_path.with_suffix(".jsonl")
     paths = [p.resolve() for p in (input_path, output_path, metadata_path, model)]
@@ -109,6 +115,8 @@ def anonymize(
             tracking=tracking,
             temporal_max_gap=temporal_max_gap,
             progress=report_progress,
+            tracker_mode=tracker_mode,
+            motion_max_gap_seconds=motion_max_gap_seconds,
         )
         if preserve_audio and temporary_video is not None:
             mux_original_audio(temporary_video, input_path, output_path)

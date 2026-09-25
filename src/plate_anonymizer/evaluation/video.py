@@ -8,6 +8,7 @@ from pathlib import Path
 
 import cv2
 
+from plate_anonymizer.evaluation.continuity import summarize_continuity
 from plate_anonymizer.evaluation.failures import save_failure_crop
 from plate_anonymizer.evaluation.metrics import Metrics, match_indices
 from plate_anonymizer.models import BoundingBox
@@ -51,11 +52,20 @@ def evaluate_video(
         raise ValueError("evaluated_frames must be nonempty and contain no duplicates.")
     reviewed = set(frames)
     annotations = defaultdict(list)
+    track_ids = defaultdict(list)
+    has_tracks = any("track_id" in item for item in manifest["annotations"])
     for item in manifest["annotations"]:
         index = _index(item["frame_index"])
         if index not in reviewed:
             raise ValueError("Annotation frame is missing from evaluated_frames.")
         annotations[index].append((_box(item["bbox"]), item.get("tags", [])))
+        if has_tracks:
+            track_id = item.get("track_id")
+            if not isinstance(track_id, str) or not track_id.strip():
+                raise ValueError("All annotations need nonempty string track_id for continuity.")
+            if track_id in track_ids[index]:
+                raise ValueError("A track_id may appear only once per frame.")
+            track_ids[index].append(track_id)
     predicted = defaultdict(list)
     ignored = 0
     with predictions.open(encoding="utf-8") as handle:
@@ -73,6 +83,7 @@ def evaluate_video(
     tp = fp = fn = 0
     tags = defaultdict(lambda: {"tp": 0, "fn": 0})
     per_frame, failures = [], []
+    tracks = defaultdict(list)
     for index in sorted(reviewed):
         gt = annotations[index]
         boxes = predicted[index]
@@ -84,6 +95,8 @@ def evaluate_video(
         fn += counts["fn"]
         per_frame.append({"frame_index": index, **counts})
         for gi, (box, item_tags) in enumerate(gt):
+            if has_tracks:
+                tracks[track_ids[index][gi]].append((index, gi in matched))
             for tag in set(item_tags):
                 tags[tag]["tp" if gi in matched else "fn"] += 1
             if gi not in matched:
@@ -133,6 +146,7 @@ def evaluate_video(
         },
         "per_frame": per_frame,
         "false_negatives": failures,
+        "continuity": summarize_continuity(tracks) if has_tracks else None,
         "inputs": {
             "predictions_sha256": hashlib.sha256(predictions.read_bytes()).hexdigest(),
             "ground_truth_sha256": hashlib.sha256(ground_truth.read_bytes()).hexdigest(),
